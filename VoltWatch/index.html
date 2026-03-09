@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltWatch — IoT SMS Alert Demo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #0c0c0f;
+  --panel: #13131a;
+  --panel2: #1a1a24;
+  --border: #252535;
+  --border2: #2e2e42;
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --amber-glow: 0 0 20px rgba(245,158,11,0.3);
+  --green: #10b981;
+  --green-dim: rgba(16,185,129,0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #475569;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(12,12,15,0.97);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.logo-icon {
+  width: 30px; height: 30px;
+  background: var(--amber);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: var(--amber-glow);
+}
+
+.logo span { color: var(--amber); }
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.pulse-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 8px rgba(16,185,129,0.6);
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+
+.at-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: var(--amber);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+}
+
+.clock {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 370px;
+  height: calc(100vh - 56px);
+}
+
+/* ══ LEFT ══ */
+.left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+.sensor-area {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.area-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.area-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.area-title::before {
+  content: '';
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.device-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 10px;
+}
+
+.sensor-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 12px 10px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, background 0.3s;
+}
+.sensor-card.alerting { border-color:var(--red); background:var(--red-dim); animation:alertpulse 1s ease-in-out infinite alternate; }
+.sensor-card.warning  { border-color:var(--amber); background:var(--amber-dim); }
+@keyframes alertpulse { from{box-shadow:none} to{box-shadow:0 0 16px rgba(239,68,68,0.25)} }
+
+.sc-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sc-icon { font-size:18px; }
+.sc-status { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 6px rgba(16,185,129,0.6); }
+.sc-status.off  { background:var(--red);   box-shadow:0 0 6px rgba(239,68,68,0.6); }
+.sc-status.warn { background:var(--amber); box-shadow:0 0 6px rgba(245,158,11,0.6); animation:pulse 1s infinite; }
+
+.sc-val { font-family:'DM Mono',monospace; font-size:26px; font-weight:500; color:var(--text); line-height:1; margin-bottom:4px; transition:color 0.3s; }
+.sc-val.red   { color:var(--red); }
+.sc-val.amber { color:var(--amber); }
+.sc-val.green { color:var(--green); }
+
+.sc-label { font-size:10px; color:var(--text3); font-weight:600; letter-spacing:1px; text-transform:uppercase; }
+
+.sc-bar { position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--border); }
+.sc-bar-fill { height:100%; background:var(--green); transition:width 1s ease, background 0.3s; }
+
+/* TRIGGERS */
+.trigger-area {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trig-label { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--text3); margin-right:4px; }
+
+.trig-btn {
+  padding: 7px 13px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: var(--panel);
+  color: var(--text2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.trig-btn:hover { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
+.trig-btn.red   { border-color:rgba(239,68,68,0.4); color:var(--red); background:var(--red-dim); }
+.trig-btn.red:hover   { border-color:var(--red); }
+.trig-btn.green { border-color:rgba(16,185,129,0.4); color:var(--green); background:var(--green-dim); }
+.trig-btn.green:hover { border-color:var(--green); }
+
+/* CONFIG */
+.config-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.config-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.config-card.full { grid-column: 1 / -1; }
+
+.cc-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+.phone-wrap { display:flex; gap:8px; }
+.cc-code {
+  background:var(--panel2);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  padding:10px 12px;
+  font-family:'DM Mono',monospace;
+  font-size:13px;
+  color:var(--amber);
+  font-weight:500;
+  min-width:58px;
+  text-align:center;
+}
+.phone-input {
+  flex:1;
+  background:var(--panel2);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  padding:10px 14px;
+  font-family:'DM Mono',monospace;
+  font-size:14px;
+  color:var(--text);
+  outline:none;
+  transition:border-color 0.2s;
+}
+.phone-input:focus { border-color:var(--amber); }
+.phone-input::placeholder { color:var(--text3); }
+
+.alert-toggles { display:flex; flex-direction:column; gap:7px; }
+.atr {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.atr:hover { border-color:var(--border2); }
+.atr.on { border-color:var(--amber); background:var(--amber-dim); }
+.atr-left { display:flex; align-items:center; gap:10px; }
+.atr-icon { font-size:15px; }
+.atr-name { font-size:12px; font-weight:600; }
+.atr-desc { font-size:10px; color:var(--text3); }
+
+.toggle-pill {
+  width:34px; height:19px;
+  background:var(--border2);
+  border-radius:10px;
+  position:relative;
+  transition:background 0.2s;
+  flex-shrink:0;
+}
+.toggle-pill.on { background:var(--amber); }
+.toggle-pill::after {
+  content:'';
+  position:absolute;
+  top:2.5px; left:2.5px;
+  width:14px; height:14px;
+  border-radius:50%;
+  background:white;
+  transition:transform 0.2s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+.toggle-pill.on::after { transform:translateX(15px); }
+
+.thresh-rows { display:flex; flex-direction:column; gap:7px; }
+.thresh-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 12px;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:8px;
+}
+.thresh-lbl { font-size:12px; color:var(--text2); display:flex; align-items:center; gap:7px; }
+.thresh-ctrls { display:flex; align-items:center; gap:7px; }
+.thresh-step {
+  width:25px; height:25px;
+  border-radius:6px;
+  background:var(--border);
+  border:none;
+  color:var(--text2);
+  font-size:15px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.15s;
+}
+.thresh-step:hover { background:var(--amber); color:#0c0c0f; }
+.thresh-val { font-family:'DM Mono',monospace; font-size:13px; color:var(--amber); min-width:50px; text-align:center; }
+
+.freq-row { display:flex; gap:6px; }
+.freq-btn {
+  flex:1; padding:9px;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text3);
+  font-family:'DM Sans',sans-serif;
+  font-size:11px; font-weight:700;
+  cursor:pointer; text-align:center;
+  transition:all 0.15s;
+}
+.freq-btn:hover { border-color:var(--border2); color:var(--text2); }
+.freq-btn.sel { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
+
+/* ══ RIGHT ══ */
+.right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.sms-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sms-title { font-size:13px; font-weight:700; margin-bottom:2px; }
+.sms-sub { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); }
+
+.preview-area { padding:14px 20px; border-bottom:1px solid var(--border); }
+.preview-label { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--text3); margin-bottom:8px; }
+
+.sms-preview {
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px 14px;
+}
+.preview-to {
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  color:var(--text3);
+  margin-bottom:8px;
+}
+.preview-to span { color:var(--amber); }
+.preview-body {
+  font-size:12px;
+  color:var(--text);
+  line-height:1.6;
+  white-space:pre-wrap;
+  min-height:56px;
+}
+.preview-chars {
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  color:var(--text3);
+  text-align:right;
+  margin-top:6px;
+}
+
+.send-area { padding:14px 20px; border-bottom:1px solid var(--border); }
+.send-btn {
+  width:100%; padding:14px;
+  background:var(--amber);
+  border:none; border-radius:10px;
+  color:#0c0c0f;
+  font-family:'DM Sans',sans-serif;
+  font-weight:700; font-size:14px;
+  cursor:pointer;
+  transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  box-shadow:0 4px 20px rgba(245,158,11,0.3);
+}
+.send-btn:hover { background:#fbbf24; box-shadow:0 4px 28px rgba(245,158,11,0.5); transform:translateY(-1px); }
+.send-btn:active { transform:translateY(0); }
+.send-btn:disabled { background:var(--border2); color:var(--text3); box-shadow:none; cursor:not-allowed; transform:none; }
+.spinner { width:15px; height:15px; border:2px solid rgba(0,0,0,0.25); border-top-color:#0c0c0f; border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.api-resp {
+  padding:10px 20px;
+  border-bottom:1px solid var(--border);
+  min-height:46px;
+  display:flex;
+  align-items:center;
+}
+.api-resp-inner {
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  line-height:1.6;
+  white-space:pre-wrap;
+  width:100%;
+  color:var(--text3);
+}
+.api-resp-inner.ok  { color:var(--green); }
+.api-resp-inner.err { color:var(--red); }
+.api-resp-inner.pending { color:var(--amber); }
+
+.log-area { flex:1; overflow-y:auto; padding:14px 20px; }
+.log-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.log-ttl { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--text3); }
+.log-clr { font-size:10px; color:var(--text3); background:none; border:none; cursor:pointer; }
+.log-clr:hover { color:var(--red); }
+
+.log-empty { text-align:center; padding:28px 0; color:var(--text3); font-size:12px; }
+
+.log-entries { display:flex; flex-direction:column; gap:7px; }
+.log-entry {
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-left:3px solid var(--border2);
+  border-radius:8px;
+  padding:9px 12px;
+  animation:fadeup 0.25s ease;
+}
+@keyframes fadeup { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+.log-entry.ok   { border-left-color:var(--green); }
+.log-entry.fail { border-left-color:var(--red); }
+.log-entry.pending { border-left-color:var(--amber); }
+
+.le-row1 { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+.le-status { font-size:11px; font-weight:700; }
+.le-status.ok   { color:var(--green); }
+.le-status.fail { color:var(--red); }
+.le-status.pending { color:var(--amber); }
+.le-time { font-family:'DM Mono',monospace; font-size:9px; color:var(--text3); }
+.le-to { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); margin-bottom:2px; }
+.le-msg { font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.le-cost { font-family:'DM Mono',monospace; font-size:9px; color:var(--text3); margin-top:3px; }
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+#toasts { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:9999; }
+.toast { background:var(--panel2); border:1px solid var(--border2); border-radius:10px; padding:11px 16px; font-size:13px; max-width:280px; box-shadow:0 8px 32px rgba(0,0,0,0.5); animation:toastin 0.3s cubic-bezier(0.34,1.56,0.64,1); border-left:3px solid var(--amber); }
+.toast.ok   { border-left-color:var(--green); }
+.toast.fail { border-left-color:var(--red); }
+@keyframes toastin { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+
+.divider { height:1px; background:var(--border); margin:10px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Volt<span>Watch</span>
+  </div>
+  <div class="topbar-center">
+    <div class="pulse-dot"></div>
+    Simulated IoT Device · F.C.T, Abuuja
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="at-badge">⚡ Africa's Talking · Sandbox</div>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <div class="sensor-area">
+      <div class="area-header">
+        <div class="area-title">Live Sensor Readings</div>
+        <div class="device-tag">DEVICE_001 · Ikeja</div>
+      </div>
+      <div class="sensor-grid">
+
+        <div class="sensor-card" id="card-voltage">
+          <div class="sc-top"><span class="sc-icon">⚡</span><div class="sc-status" id="dot-voltage"></div></div>
+          <div class="sc-val" id="val-voltage">218</div>
+          <div class="sc-label">Voltage (V)</div>
+          <div class="sc-bar"><div class="sc-bar-fill" id="bar-voltage" style="width:82%"></div></div>
+        </div>
+
+        <div class="sensor-card" id="card-power">
+          <div class="sc-top"><span class="sc-icon">🔌</span><div class="sc-status" id="dot-power"></div></div>
+          <div class="sc-val green" id="val-power">ON</div>
+          <div class="sc-label">Power Status</div>
+          <div class="sc-bar"><div class="sc-bar-fill" id="bar-power" style="width:100%"></div></div>
+        </div>
+
+        <div class="sensor-card" id="card-temp">
+          <div class="sc-top"><span class="sc-icon">🌡️</span><div class="sc-status" id="dot-temp"></div></div>
+          <div class="sc-val" id="val-temp">32.4</div>
+          <div class="sc-label">Temperature (°C)</div>
+          <div class="sc-bar"><div class="sc-bar-fill" id="bar-temp" style="width:40%"></div></div>
+        </div>
+
+        <div class="sensor-card" id="card-humid">
+          <div class="sc-top"><span class="sc-icon">💧</span><div class="sc-status" id="dot-humid"></div></div>
+          <div class="sc-val" id="val-humid">64</div>
+          <div class="sc-label">Humidity (%)</div>
+          <div class="sc-bar"><div class="sc-bar-fill" id="bar-humid" style="width:64%"></div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="trigger-area">
+      <span class="trig-label">Simulate</span>
+      <button class="trig-btn red"   onclick="trigger('outage')">⛔ Power Outage</button>
+      <button class="trig-btn" style="border-color:rgba(245,158,11,0.4);color:var(--amber)" onclick="trigger('lowvoltage')">⚡ Low Voltage</button>
+      <button class="trig-btn" style="border-color:rgba(239,68,68,0.3);color:#f87171"       onclick="trigger('hightemp')">🌡️ High Temp</button>
+      <button class="trig-btn" style="border-color:rgba(59,130,246,0.4);color:var(--blue)"  onclick="trigger('highhumid')">💧 High Humidity</button>
+      <button class="trig-btn green" onclick="trigger('normal')">✓ Restore</button>
+    </div>
+
+    <div class="config-area">
+      <div class="config-grid">
+
+        <div class="config-card full">
+          <div class="cc-title">Recipient Phone Number</div>
+          <div class="phone-wrap">
+            <div class="cc-code">+234</div>
+            <input class="phone-input" type="tel" id="phoneInput" placeholder="8012345678" maxlength="11">
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;font-family:'DM Mono',monospace">
+            SMS alerts sent to this number via Africa's Talking API
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="cc-title">Alert Types</div>
+          <div class="alert-toggles">
+            <div class="atr on" id="tog-power" onclick="toggleAlert('power')">
+              <div class="atr-left"><span class="atr-icon">🔌</span><div><div class="atr-name">Power Outage</div><div class="atr-desc">On/off events</div></div></div>
+              <div class="toggle-pill on" id="pill-power"></div>
+            </div>
+            <div class="atr on" id="tog-voltage" onclick="toggleAlert('voltage')">
+              <div class="atr-left"><span class="atr-icon">⚡</span><div><div class="atr-name">Low Voltage</div><div class="atr-desc">Below threshold</div></div></div>
+              <div class="toggle-pill on" id="pill-voltage"></div>
+            </div>
+            <div class="atr" id="tog-temp" onclick="toggleAlert('temp')">
+              <div class="atr-left"><span class="atr-icon">🌡️</span><div><div class="atr-name">High Temp</div><div class="atr-desc">Above threshold</div></div></div>
+              <div class="toggle-pill" id="pill-temp"></div>
+            </div>
+            <div class="atr" id="tog-humid" onclick="toggleAlert('humid')">
+              <div class="atr-left"><span class="atr-icon">💧</span><div><div class="atr-name">High Humidity</div><div class="atr-desc">Above threshold</div></div></div>
+              <div class="toggle-pill" id="pill-humid"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="cc-title">Alert Thresholds</div>
+          <div class="thresh-rows">
+            <div class="thresh-row">
+              <div class="thresh-lbl">⚡ Voltage below</div>
+              <div class="thresh-ctrls">
+                <button class="thresh-step" onclick="adjustThresh('voltage',-5)">−</button>
+                <div class="thresh-val" id="tv-voltage">200V</div>
+                <button class="thresh-step" onclick="adjustThresh('voltage',5)">+</button>
+              </div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-lbl">🌡️ Temp above</div>
+              <div class="thresh-ctrls">
+                <button class="thresh-step" onclick="adjustThresh('temp',-1)">−</button>
+                <div class="thresh-val" id="tv-temp">45°C</div>
+                <button class="thresh-step" onclick="adjustThresh('temp',1)">+</button>
+              </div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-lbl">💧 Humidity above</div>
+              <div class="thresh-ctrls">
+                <button class="thresh-step" onclick="adjustThresh('humid',-5)">−</button>
+                <div class="thresh-val" id="tv-humid">80%</div>
+                <button class="thresh-step" onclick="adjustThresh('humid',5)">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="cc-title">SMS Frequency</div>
+          <div class="freq-row">
+            <div class="freq-btn sel" id="fq-instant" onclick="setFreq('instant')">Instant</div>
+            <div class="freq-btn" id="fq-hourly"  onclick="setFreq('hourly')">Hourly</div>
+            <div class="freq-btn" id="fq-daily"   onclick="setFreq('daily')">Daily</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <div class="sms-header">
+      <div class="sms-title">📱 SMS via Africa's Talking API</div>
+      <div class="sms-sub">username: sandbox · proxy: localhost:3000/send-sms</div>
+    </div>
+
+    <div class="preview-area">
+      <div class="preview-label">Message Preview</div>
+      <div class="sms-preview">
+        <div class="preview-to">TO: <span id="previewTo">+234 — enter number</span></div>
+        <div class="preview-body" id="previewBody">Trigger a sensor event above, then click Send Alert.</div>
+        <div class="preview-chars" id="charCount">0 chars</div>
+      </div>
+    </div>
+
+    <div class="send-area">
+      <button class="send-btn" id="sendBtn" onclick="sendSMS()">
+        <span id="sendBtnInner">📤 Send Alert via Africa's Talking</span>
+      </button>
+    </div>
+
+    <div class="api-resp">
+      <div class="api-resp-inner" id="apiResp">// API response will appear here</div>
+    </div>
+
+    <div class="log-area">
+      <div class="log-top">
+        <div class="log-ttl">SMS Log</div>
+        <button class="log-clr" onclick="clearLog()">Clear</button>
+      </div>
+      <div id="logWrap"><div class="log-empty">📭 No messages sent yet</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ══════════════════════════════════
+// CONFIG
+// ══════════════════════════════════
+// Website calls this local backend — which calls Africa's Talking
+const BACKEND = 'http://localhost:3000/send-sms';
+
+let sensorState = { voltage:218, temp:32.4, humidity:64, power:true, mode:'normal' };
+let alerts  = { power:true, voltage:true, temp:false, humid:false };
+let thresholds = { voltage:200, temp:45, humid:80 };
+let freq = 'instant';
+let currentMsg = '';
+let logEntries = [];
+
+// ══════════════════════════════════
+// CLOCK
+// ══════════════════════════════════
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-NG');
+}, 1000);
+
+// ══════════════════════════════════
+// LIVE SENSOR FLUCTUATION
+// ══════════════════════════════════
+setInterval(() => {
+  if (sensorState.mode !== 'normal') return;
+  sensorState.voltage  = +(215 + Math.random() * 8).toFixed(0);
+  sensorState.temp     = +(30  + Math.random() * 5).toFixed(1);
+  sensorState.humidity = +(60  + Math.random() * 10).toFixed(0);
+  renderSensors();
+}, 2000);
+
+function renderSensors() {
+  const { voltage, temp, humidity, power } = sensorState;
+  const vAlert = voltage < thresholds.voltage;
+  const tAlert = temp    > thresholds.temp;
+  const hAlert = humidity > thresholds.humid;
+
+  setCard('voltage', voltage,    vAlert?'amber':'', vAlert?'warn':'',  (voltage/250)*100, vAlert?'var(--amber)':'var(--green)');
+  setCard('power',   power?'ON':'OFF', power?'green':'red', power?'':'off', power?100:0,  power?'var(--green)':'var(--red)');
+  setCard('temp',    temp,       tAlert?'red':'',   tAlert?'warn':'',  (temp/80)*100,     tAlert?'var(--red)':'var(--green)');
+  setCard('humid',   humidity,   hAlert?'amber':'', hAlert?'warn':'',  humidity,          hAlert?'var(--amber)':'var(--green)');
+
+  toggle('card-voltage', vAlert,  'warning');
+  toggle('card-power',   !power,  'alerting');
+  toggle('card-temp',    tAlert,  'alerting');
+  toggle('card-humid',   hAlert,  'warning');
+}
+
+function setCard(id, val, valCls, dotCls, barPct, barColor) {
+  const v = document.getElementById('val-'+id);
+  v.textContent = val;
+  v.className = 'sc-val ' + valCls;
+  document.getElementById('dot-'+id).className = 'sc-status ' + dotCls;
+  const b = document.getElementById('bar-'+id);
+  b.style.width = Math.min(100,Math.max(0,barPct)) + '%';
+  b.style.background = barColor;
+}
+
+function toggle(id, on, cls) {
+  document.getElementById(id).classList.toggle(cls, on);
+}
+
+// ══════════════════════════════════
+// TRIGGERS
+// ══════════════════════════════════
+function trigger(type) {
+  sensorState.mode = type === 'normal' ? 'normal' : type;
+  if (type === 'outage')     { sensorState.power = false; sensorState.voltage = 0; }
+  if (type === 'lowvoltage') { sensorState.voltage = +(150 + Math.random()*25).toFixed(0); }
+  if (type === 'hightemp')   { sensorState.temp = +(52 + Math.random()*8).toFixed(1); }
+  if (type === 'highhumid')  { sensorState.humidity = +(88 + Math.random()*8).toFixed(0); }
+  if (type === 'normal')     { sensorState.power=true; sensorState.voltage=218; sensorState.temp=32.4; sensorState.humidity=64; }
+  buildMessage(type);
+  renderSensors();
+}
+
+// ══════════════════════════════════
+// MESSAGE BUILDER
+// ══════════════════════════════════
+function buildMessage(type) {
+  const device = 'IoT Device · F.C.T, Abuja';
+  const t = new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const map = {
+    outage:     `⛔ POWER OUTAGE\n\nDevice: ${device}\nTime: ${t}\n\nYour power supply has gone off. You will be notified when it is restored.\n\n- VoltWatch`,
+    lowvoltage: `⚡ LOW VOLTAGE WARNING\n\nDevice: ${device}\nVoltage: ${sensorState.voltage}V (limit: ${thresholds.voltage}V)\nTime: ${t}\n\nThis may damage your appliances. Switch to alternative power.\n\n- VoltWatch`,
+    hightemp:   `🌡️ HIGH TEMPERATURE ALERT\n\nDevice: ${device}\nTemp: ${sensorState.temp}°C (limit: ${thresholds.temp}°C)\nTime: ${t}\n\nCheck your device immediately.\n\n- VoltWatch`,
+    highhumid:  `💧 HIGH HUMIDITY ALERT\n\nDevice: ${device}\nHumidity: ${sensorState.humidity}% (limit: ${thresholds.humid}%)\nTime: ${t}\n\nConsider ventilating the area.\n\n- VoltWatch`,
+    normal:     `✅ ALL CLEAR\n\nDevice: ${device}\nTime: ${t}\n\nAll readings back to normal.\nVoltage: ${sensorState.voltage}V ✓\nTemp: ${sensorState.temp}°C ✓\n\n- VoltWatch`,
+    test:       `👋 VoltWatch Test SMS\n\nDevice: ${device}\nTime: ${t}\n\nYour SMS alerts are working!\n\n- VoltWatch`,
+  };
+  currentMsg = map[type] || map.test;
+  updatePreview();
+}
+
+function updatePreview() {
+  const phone = getPhone();
+  document.getElementById('previewTo').textContent = phone || '+234 — enter number';
+  document.getElementById('previewBody').textContent = currentMsg || 'Trigger a sensor event above, then click Send Alert.';
+  const len = currentMsg.length;
+  document.getElementById('charCount').textContent = `${len} chars · ${Math.ceil(len/160)||0} SMS`;
+}
+
+function getPhone() {
+  const raw = document.getElementById('phoneInput').value.trim().replace(/\D/g,'');
+  if (!raw) return '';
+  return '+234' + (raw.startsWith('0') ? raw.slice(1) : raw);
+}
+
+document.getElementById('phoneInput').addEventListener('input', updatePreview);
+
+// ══════════════════════════════════
+// SEND SMS — calls localhost:3000
+// ══════════════════════════════════
+async function sendSMS() {
+  const phone = getPhone();
+  if (!phone || phone.length < 12) { toast('Enter a valid phone number first', 'fail'); return; }
+  if (!currentMsg) buildMessage('test');
+
+  const btn = document.getElementById('sendBtn');
+  const inner = document.getElementById('sendBtnInner');
+  btn.disabled = true;
+  inner.innerHTML = '<div class="spinner"></div> Sending...';
+  setResp('pending', '⟳ POST localhost:3000/send-sms → Africa\'s Talking API...');
+
+  const logId = addLog('pending', phone, currentMsg);
+
+  try {
+    const res = await fetch(BACKEND, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: phone, message: currentMsg, from: 10371 }),
+    });
+
+    const data = await res.json();
+    console.log('[VoltWatch]', data);
+
+    if (data.success) {
+      setResp('ok',
+        `✓ DELIVERED\nStatus: ${data.status}\nMessageId: ${data.messageId}\nCost: ${data.cost}\nTo: ${data.number}`
+      );
+      updateLog(logId, 'ok', `${data.status} · ${data.cost}`);
+      toast(`✅ SMS sent to ${phone}!`, 'ok');
+    } else {
+      setResp('err', `✕ Failed: ${data.error}`);
+      updateLog(logId, 'fail', data.error);
+      toast(`SMS failed: ${data.error}`, 'fail');
+    }
+  } catch (err) {
+    setResp('err', `✕ Cannot reach backend.\n\nMake sure the server is running:\n  node server.js\n\nThen refresh this page.`);
+    updateLog(logId, 'fail', 'Backend not running');
+    toast('Start the backend first: node server.js', 'fail');
+    console.error(err);
+  }
+
+  btn.disabled = false;
+  inner.textContent = '📤 Send Alert via Africa\'s Talking';
+}
+
+// ══════════════════════════════════
+// LOG
+// ══════════════════════════════════
+function addLog(status, phone, msg) {
+  const id = Date.now();
+  logEntries.unshift({ id, status, phone, msg, time: new Date(), cost:'' });
+  renderLog();
+  return id;
+}
+
+function updateLog(id, status, cost) {
+  const e = logEntries.find(x => x.id === id);
+  if (e) { e.status = status; e.cost = cost; }
+  renderLog();
+}
+
+function renderLog() {
+  const w = document.getElementById('logWrap');
+  if (!logEntries.length) { w.innerHTML = '<div class="log-empty">📭 No messages sent yet</div>'; return; }
+  const icons = {ok:'✅', fail:'✕', pending:'⟳'};
+  const labels = {ok:'Delivered', fail:'Failed', pending:'Sending...'};
+  w.innerHTML = '<div class="log-entries">' +
+    logEntries.map(e => `
+      <div class="log-entry ${e.status}">
+        <div class="le-row1">
+          <div class="le-status ${e.status}">${icons[e.status]} ${labels[e.status]}</div>
+          <div class="le-time">${e.time.toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        <div class="le-to">TO: ${e.phone}</div>
+        <div class="le-msg">${e.msg.split('\n')[0]}</div>
+        ${e.cost ? `<div class="le-cost">Cost: ${e.cost}</div>` : ''}
+      </div>`
+    ).join('') + '</div>';
+}
+
+function clearLog() { logEntries = []; renderLog(); }
+
+// ══════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════
+function setResp(type, text) {
+  const el = document.getElementById('apiResp');
+  el.className = 'api-resp-inner ' + type;
+  el.textContent = text;
+}
+
+function toggleAlert(type) {
+  alerts[type] = !alerts[type];
+  document.getElementById('tog-'+type).classList.toggle('on', alerts[type]);
+  document.getElementById('pill-'+type).classList.toggle('on', alerts[type]);
+}
+
+const threshRanges = { voltage:[150,240], temp:[30,80], humid:[50,100] };
+const threshUnits  = { voltage:'V', temp:'°C', humid:'%' };
+function adjustThresh(id, d) {
+  const [mn,mx] = threshRanges[id];
+  thresholds[id] = Math.min(mx, Math.max(mn, thresholds[id]+d));
+  document.getElementById('tv-'+id).textContent = thresholds[id] + threshUnits[id];
+}
+
+function setFreq(f) {
+  freq = f;
+  ['instant','hourly','daily'].forEach(x => document.getElementById('fq-'+x).classList.toggle('sel', x===f));
+}
+
+function toast(msg, type='') {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// Init
+buildMessage('test');
+renderSensors();
+</script>
+</body>
+</html>
